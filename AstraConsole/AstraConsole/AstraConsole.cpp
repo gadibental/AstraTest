@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <chrono>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 
 #include "opencv2/highgui.hpp" // basic opencv header. needed for all openCV functionality
@@ -33,8 +34,8 @@ public:
 		const astra::DepthFrame depthFrame = frame.get<astra::DepthFrame>();
 		if (depthFrame.is_valid())
 		{
-//			print_depth(depthFrame,
-//				reader.stream<astra::DepthStream>().coordinateMapper());
+			//SaveDepth(depthFrame,
+			//	reader.stream<astra::DepthStream>().coordinateMapper());
 			check_fps();
 			ShowDepth(depthFrame);
 		}
@@ -63,27 +64,24 @@ public:
 		depthFrame.copy_to(buffer_D.get());
 
 		const float maxDepth = 1000.0f;
-		cv::Mat depthImage = cv::Mat(height, width, CV_8UC1);
+		cv::Mat depthImage = cv::Mat(height, width, CV_16UC1);
+		cv::Mat showImage = cv::Mat(height, width, CV_8UC1);
 		size_t index = 0;
-//		float maxDepth = 0;
 		for (int y = 0; y < height; ++y)
 		{
 			for (int x = 0; x < width; ++x)
 			{
 				short pixelValue = buffer_D[index];
-//				maxDepth = max(maxDepth, pixelValue);
 
-				depthImage.at<byte>(cv::Point(x, y)) = (byte)(pixelValue * 255 / maxDepth);
+				depthImage.at<ushort>(cv::Point(x, y)) = pixelValue;
+				showImage.at<byte>(cv::Point(x, y)) = (byte)(pixelValue * 255 / maxDepth);
 				index++;
 			}
 		}
-		//if (maxDepth > 1.0f)
-		//{
-		//	depthImage = depthImage / maxDepth;
-		//}
 
-		cv::imshow("depth", depthImage);
-		cv::imwrite("depth.png", depthImage);
+		cv::imshow("depth", showImage);
+		cv::imwrite("depth.png", showImage);
+		SaveMat("depth.txt", depthImage);
 	}
 
 	void ShowColour(const astra::ColorFrame& colorFrame)
@@ -142,43 +140,21 @@ public:
 				<< std::endl;
 		}
 	}
-	void print_depth(const astra::DepthFrame& depthFrame,
-		const astra::CoordinateMapper& mapper)
+
+	void SaveMat(std::string name, cv::Mat mat)
 	{
-		if (depthFrame.is_valid())
+		std::ofstream file(name, std::ios::out);// | std::ios::binary)
+
+		for (int i = 0; i<mat.rows; i++)
 		{
-			int width = depthFrame.width();
-			int height = depthFrame.height();
-			int frameIndex = depthFrame.frame_index();
-
-			//determine if buffer needs to be reallocated
-			if (width != lastWidth_D || height != lastHeight_D)
+			for (int j = 0; j<mat.cols; j++)
 			{
-				buffer_D = buffer_ptrD(new int16_t[depthFrame.length()]);
-				lastWidth_D = width;
-				lastHeight_D = height;
+				file << mat.at<ushort>(i, j) << ",";
 			}
-			depthFrame.copy_to(buffer_D.get());
-
-			size_t index = (size_t)((width * (height / 2.0f)) + (width / 2.0f));
-			short middle = buffer_D[index];
-
-			float worldX, worldY, worldZ;
-			float depthX, depthY, depthZ;
-			mapper.convert_depth_to_world(width / 2.0f, height / 2.0f, middle, &worldX, &worldY, &worldZ);
-			mapper.convert_world_to_depth(worldX, worldY, worldZ, &depthX, &depthY, &depthZ);
-
-			std::cout << "depth frameIndex: " << frameIndex
-				<< " size :" << width << " x " << height
-				<< " value: " << middle
-				<< " wX: " << worldX
-				<< " wY: " << worldY
-				<< " wZ: " << worldZ
-				<< " dX: " << depthX
-				<< " dY: " << depthY
-				<< " dZ: " << depthZ
-				<< std::endl;
+			file << ";\n";
 		}
+
+		file.close();
 	}
 
 	void check_fps()
