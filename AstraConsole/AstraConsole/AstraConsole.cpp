@@ -26,18 +26,35 @@ private:
 	buffer_ptrRGB buffer_RGB;
 	unsigned int lastWidth_RGB;
 	unsigned int lastHeight_RGB;
+	int frameCounter;
 
 public:
+
+	SampleFrameListener() 
+		: frameCounter(0)
+		, lastWidth_RGB(0)
+		, lastHeight_RGB(0)
+		, lastWidth_D(0)
+		, lastHeight_D(0)
+	{
+
+	}
+
 	virtual void on_frame_ready(astra::StreamReader& reader,
 		astra::Frame& frame) override
 	{
 		const astra::DepthFrame depthFrame = frame.get<astra::DepthFrame>();
 		if (depthFrame.is_valid())
 		{
-			//SaveDepth(depthFrame,
-			//	reader.stream<astra::DepthStream>().coordinateMapper());
-			check_fps();
+			frameCounter++;
+
 			ShowDepth(depthFrame);
+			check_fps();
+
+			if ((frameCounter % 10) == 0)
+			{
+				SaveResults(reader.stream<astra::DepthStream>().coordinateMapper());
+			}
 		}
 
 		const astra::ColorFrame colorFrame = frame.get<astra::ColorFrame>();
@@ -47,9 +64,97 @@ public:
 			ShowColour(colorFrame);
 		}
 
+
+
 		cv::waitKey(1); // refresh
 	}
 
+	void SaveResults(const astra::CoordinateMapper& mapper)
+	{
+		if (lastWidth_D == 0 || lastHeight_D == 0 ||
+			lastWidth_RGB == 0 || lastHeight_RGB == 0)
+		{
+			return; // no data
+		}
+
+		std::ofstream file("vertices.csv", std::ios::out);
+
+		file << "X,Y,Z,R,G,B\n";
+
+		int depthIndex = 0;
+		for (unsigned int y = 0; y<lastHeight_D; ++y)
+		{
+			for (unsigned int x = 0; x<lastWidth_D; ++x)
+			{
+				ushort depthValue = buffer_D[depthIndex];
+				if (depthValue != 0)
+				{
+					astra::Vector3f depthPixel((float)x,(float)y,depthValue);
+					astra::Vector3f vertex = mapper.convert_depth_to_world(depthPixel);
+					file << vertex.x << ',' << vertex.y << ',' << vertex.z << ',';
+					// get the corresponding colour value
+					int cx = x * lastWidth_RGB / lastWidth_D;
+					int cy = y * lastHeight_RGB / lastHeight_D;
+					int colourIndex = cy * lastWidth_RGB + cx;
+					astra::RgbPixel colourValue = buffer_RGB[colourIndex];
+					file << (int)colourValue.r << ',' << (int)colourValue.g << ',' << (int)colourValue.b << ',';
+
+					file << "\n";
+				}
+				depthIndex++;
+			}
+		}
+
+	}
+
+	void SaveDepth(const astra::DepthFrame& depthFrame,
+		const astra::CoordinateMapper& mapper)
+	{
+		if (depthFrame.is_valid())
+		{
+			int width = depthFrame.width();
+			int height = depthFrame.height();
+			int frameIndex = depthFrame.frame_index();
+
+			//determine if buffer needs to be reallocated
+			if (width != lastWidth_D || height != lastHeight_D)
+			{
+				buffer_D = buffer_ptrD(new int16_t[depthFrame.length()]);
+				lastWidth_D = width;
+				lastHeight_D = height;
+			}
+			depthFrame.copy_to(buffer_D.get());
+
+			cv::Mat world = cv::Mat::zeros(height, width, CV_32FC3);
+//			cv::Mat camera = cv::Mat::zeros(height, width, CV_32FC3);
+
+			size_t index = 0;
+			for (int y = 0; y < height; ++y)
+			{
+				for (int x = 0; x < width; ++x)
+				{
+					ushort pixelValue = buffer_D[index];
+
+					if (pixelValue != 0)
+					{
+						float worldX, worldY, worldZ;
+//						float depthX, depthY, depthZ;
+						mapper.convert_depth_to_world((float)x, (float)y, pixelValue, &worldX, &worldY, &worldZ);
+//						mapper.convert_world_to_depth(worldX, worldY, worldZ, &depthX, &depthY, &depthZ);
+					
+						world.at<cv::Vec3f>(cv::Point(x, y)) = cv::Vec3f(worldX, worldY, worldZ);
+//						camera.at<cv::Vec3f>(cv::Point(x, y)) = cv::Vec3f(depthX, depthY, depthZ);
+					}
+					
+					index++;
+				}
+			}
+
+			SaveMat3f("world.csv", world);
+//			SaveMat3f("camera.txt", camera);
+
+		}
+	}
 
 	void ShowDepth(const astra::DepthFrame& depthFrame)
 	{
@@ -80,8 +185,8 @@ public:
 		}
 
 		cv::imshow("depth", showImage);
-		cv::imwrite("depth.png", showImage);
-		SaveMat("depth.txt", depthImage);
+//		cv::imwrite("depth.png", showImage);
+		//SaveMat("depth.txt", depthImage);
 	}
 
 	void ShowColour(const astra::ColorFrame& colorFrame)
@@ -110,7 +215,7 @@ public:
 		}
 
 		cv::imshow("colour", colourImage);
-		cv::imwrite("colour.png", colourImage);
+//		cv::imwrite("colour.png", colourImage);
 	}
 
 
@@ -143,15 +248,40 @@ public:
 
 	void SaveMat(std::string name, cv::Mat mat)
 	{
-		std::ofstream file(name, std::ios::out);// | std::ios::binary)
+		std::ofstream file(name, std::ios::out);
 
 		for (int i = 0; i<mat.rows; i++)
 		{
 			for (int j = 0; j<mat.cols; j++)
 			{
-				file << mat.at<ushort>(i, j) << ",";
+				file <<  mat.at<ushort>(i, j) << ",";
 			}
 			file << ";\n";
+		}
+
+		file.close();
+	}
+
+	void SaveMat3f(std::string name, cv::Mat mat)
+	{
+		std::ofstream file(name, std::ios::out);
+
+		file << "x,y,z,\n";
+
+		for (int y = 0; y<mat.rows; ++y)
+		{
+			for (int x = 0; x<mat.cols; ++x)
+			{
+				cv::Vec3f vertex = mat.at<cv::Vec3f>(cv::Point(x,y));
+				if (vertex[0] != 0)
+				{
+					for (int c = 0; c < 3; ++c)
+					{
+						file << vertex[c] << ',';
+					}
+					file << "\n";
+				}
+			}
 		}
 
 		file.close();
