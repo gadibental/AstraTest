@@ -11,311 +11,66 @@
 
 #include "opencv2/highgui.hpp" // basic opencv header. needed for all openCV functionality
 #include <opencv2/imgproc.hpp> // needed for overlay on images 
+#include "SimpleFrameListener.h"
+
 
 #include "key_handler.h"
 
-class SampleFrameListener : public astra::FrameListener
+astra::DepthStream configure_depth(astra::StreamReader& reader)
 {
-private:
-	using buffer_ptrD = std::unique_ptr<int16_t[]>;
-	buffer_ptrD buffer_D;
-	unsigned int lastWidth_D;
-	unsigned int lastHeight_D;
+	auto depthStream = reader.stream<astra::DepthStream>();
 
-	using buffer_ptrRGB = std::unique_ptr<astra::RgbPixel[]>;
-	buffer_ptrRGB buffer_RGB;
-	unsigned int lastWidth_RGB;
-	unsigned int lastHeight_RGB;
-	int frameCounter;
+	//We don't have to set the mode to start the stream, but if you want to here is how:
+	astra::ImageStreamMode depthMode;
 
-public:
+	depthMode.set_width(640);
+	depthMode.set_height(480);
+	depthMode.set_pixel_format(astra_pixel_formats::ASTRA_PIXEL_FORMAT_DEPTH_MM);
+	depthMode.set_fps(30);
 
-	SampleFrameListener() 
-		: frameCounter(0)
-		, lastWidth_RGB(0)
-		, lastHeight_RGB(0)
-		, lastWidth_D(0)
-		, lastHeight_D(0)
+	depthStream.set_mode(depthMode);
+	depthStream.enable_registration(true);
+
+	return depthStream;
+}
+
+astra::InfraredStream configure_ir(astra::StreamReader& reader, bool useRGB)
+{
+	auto irStream = reader.stream<astra::InfraredStream>();
+
+	astra::ImageStreamMode irMode;
+	irMode.set_width(640);
+	irMode.set_height(480);
+
+	if (useRGB)
 	{
-
+		irMode.set_pixel_format(astra_pixel_formats::ASTRA_PIXEL_FORMAT_RGB888);
+	}
+	else
+	{
+		irMode.set_pixel_format(astra_pixel_formats::ASTRA_PIXEL_FORMAT_GRAY16);
 	}
 
-	virtual void on_frame_ready(astra::StreamReader& reader,
-		astra::Frame& frame) override
-	{
-		const astra::DepthFrame depthFrame = frame.get<astra::DepthFrame>();
-		if (depthFrame.is_valid())
-		{
-			frameCounter++;
+	irMode.set_fps(30);
+	irStream.set_mode(irMode);
 
-			ShowDepth(depthFrame);
-			check_fps();
+	return irStream;
+}
 
-			if ((frameCounter % 10) == 0)
-			{
-				SaveResults(reader.stream<astra::DepthStream>().coordinateMapper());
-			}
-		}
+astra::ColorStream configure_color(astra::StreamReader& reader)
+{
+	auto colorStream = reader.stream<astra::ColorStream>();
 
-		const astra::ColorFrame colorFrame = frame.get<astra::ColorFrame>();
-		if (colorFrame.is_valid())
-		{
-//			print_color(colorFrame);
-			ShowColour(colorFrame);
-		}
+	astra::ImageStreamMode colorMode;
+	colorMode.set_width(640);
+	colorMode.set_height(480);
+	colorMode.set_pixel_format(astra_pixel_formats::ASTRA_PIXEL_FORMAT_RGB888);
+	colorMode.set_fps(30);
 
+	colorStream.set_mode(colorMode);
 
-
-		cv::waitKey(1); // refresh
-	}
-
-	void SaveResults(const astra::CoordinateMapper& mapper)
-	{
-		if (lastWidth_D == 0 || lastHeight_D == 0 ||
-			lastWidth_RGB == 0 || lastHeight_RGB == 0)
-		{
-			return; // no data
-		}
-
-		std::ofstream file("vertices.csv", std::ios::out);
-
-		file << "X,Y,Z,R,G,B\n";
-
-		int depthIndex = 0;
-		for (unsigned int y = 0; y<lastHeight_D; ++y)
-		{
-			for (unsigned int x = 0; x<lastWidth_D; ++x)
-			{
-				ushort depthValue = buffer_D[depthIndex];
-				if (depthValue != 0)
-				{
-					astra::Vector3f depthPixel((float)x,(float)y,depthValue);
-					astra::Vector3f vertex = mapper.convert_depth_to_world(depthPixel);
-					file << vertex.x << ',' << vertex.y << ',' << vertex.z << ',';
-					// get the corresponding colour value
-					int cx = x * lastWidth_RGB / lastWidth_D;
-					int cy = y * lastHeight_RGB / lastHeight_D;
-					int colourIndex = cy * lastWidth_RGB + cx;
-					astra::RgbPixel colourValue = buffer_RGB[colourIndex];
-					file << (int)colourValue.r << ',' << (int)colourValue.g << ',' << (int)colourValue.b << ',';
-
-					file << "\n";
-				}
-				depthIndex++;
-			}
-		}
-
-	}
-
-	void SaveDepth(const astra::DepthFrame& depthFrame,
-		const astra::CoordinateMapper& mapper)
-	{
-		if (depthFrame.is_valid())
-		{
-			int width = depthFrame.width();
-			int height = depthFrame.height();
-			int frameIndex = depthFrame.frame_index();
-
-			//determine if buffer needs to be reallocated
-			if (width != lastWidth_D || height != lastHeight_D)
-			{
-				buffer_D = buffer_ptrD(new int16_t[depthFrame.length()]);
-				lastWidth_D = width;
-				lastHeight_D = height;
-			}
-			depthFrame.copy_to(buffer_D.get());
-
-			cv::Mat world = cv::Mat::zeros(height, width, CV_32FC3);
-//			cv::Mat camera = cv::Mat::zeros(height, width, CV_32FC3);
-
-			size_t index = 0;
-			for (int y = 0; y < height; ++y)
-			{
-				for (int x = 0; x < width; ++x)
-				{
-					ushort pixelValue = buffer_D[index];
-
-					if (pixelValue != 0)
-					{
-						float worldX, worldY, worldZ;
-//						float depthX, depthY, depthZ;
-						mapper.convert_depth_to_world((float)x, (float)y, pixelValue, &worldX, &worldY, &worldZ);
-//						mapper.convert_world_to_depth(worldX, worldY, worldZ, &depthX, &depthY, &depthZ);
-					
-						world.at<cv::Vec3f>(cv::Point(x, y)) = cv::Vec3f(worldX, worldY, worldZ);
-//						camera.at<cv::Vec3f>(cv::Point(x, y)) = cv::Vec3f(depthX, depthY, depthZ);
-					}
-					
-					index++;
-				}
-			}
-
-			SaveMat3f("world.csv", world);
-//			SaveMat3f("camera.txt", camera);
-
-		}
-	}
-
-	void ShowDepth(const astra::DepthFrame& depthFrame)
-	{
-		int width = depthFrame.width();
-		int height = depthFrame.height();
-		if (width != lastWidth_D || height != lastHeight_D)
-		{
-			buffer_D = buffer_ptrD(new int16_t[depthFrame.length()]);
-			lastWidth_D = width;
-			lastHeight_D = height;
-		}
-		depthFrame.copy_to(buffer_D.get());
-
-		const float maxDepth = 1000.0f;
-		cv::Mat depthImage = cv::Mat(height, width, CV_16UC1);
-		cv::Mat showImage = cv::Mat(height, width, CV_8UC1);
-		size_t index = 0;
-		for (int y = 0; y < height; ++y)
-		{
-			for (int x = 0; x < width; ++x)
-			{
-				short pixelValue = buffer_D[index];
-
-				depthImage.at<ushort>(cv::Point(x, y)) = pixelValue;
-				showImage.at<byte>(cv::Point(x, y)) = (byte)(pixelValue * 255 / maxDepth);
-				index++;
-			}
-		}
-
-		cv::imshow("depth", showImage);
-//		cv::imwrite("depth.png", showImage);
-		//SaveMat("depth.txt", depthImage);
-	}
-
-	void ShowColour(const astra::ColorFrame& colorFrame)
-	{
-		int width = colorFrame.width();
-		int height = colorFrame.height();
-		if (width != lastWidth_RGB || height != lastHeight_RGB) 
-		{
-			buffer_RGB = buffer_ptrRGB(new astra::RgbPixel[colorFrame.length()]);
-			lastWidth_RGB = width;
-			lastHeight_RGB = height;
-		}
-		colorFrame.copy_to(buffer_RGB.get());
-
-		cv::Mat colourImage = cv::Mat(height, width, CV_8UC3);
-		size_t index = 0;
-		for (int y = 0; y < height; ++y)
-		{
-			for (int x = 0; x < width; ++x)
-			{
-				astra::RgbPixel pixelValue = buffer_RGB[index];
-				cv::Vec3b bgr(pixelValue.b, pixelValue.g, pixelValue.r);
-				colourImage.at<cv::Vec3b>(cv::Point(x, y)) = bgr;
-				index++;
-			}
-		}
-
-		cv::imshow("colour", colourImage);
-//		cv::imwrite("colour.png", colourImage);
-	}
-
-
-	void print_color(const astra::ColorFrame& colorFrame)
-	{
-		if (colorFrame.is_valid())
-		{
-			int width = colorFrame.width();
-			int height = colorFrame.height();
-			int frameIndex = colorFrame.frame_index();
-
-			if (width != lastWidth_RGB || height != lastHeight_RGB) {
-				buffer_RGB = buffer_ptrRGB(new astra::RgbPixel[colorFrame.length()]);
-				lastWidth_RGB = width;
-				lastHeight_RGB = height;
-			}
-			colorFrame.copy_to(buffer_RGB.get());
-
-			size_t index = (size_t)((width * (height / 2.0f)) + (width / 2.0f));
-			astra::RgbPixel middle = buffer_RGB[index];
-
-			std::cout << "color frameIndex: " << frameIndex
-				<< " size :" << width << " x " << height
-				<< " r: " << static_cast<int>(middle.r)
-				<< " g: " << static_cast<int>(middle.g)
-				<< " b: " << static_cast<int>(middle.b)
-				<< std::endl;
-		}
-	}
-
-	void SaveMat(std::string name, cv::Mat mat)
-	{
-		std::ofstream file(name, std::ios::out);
-
-		for (int i = 0; i<mat.rows; i++)
-		{
-			for (int j = 0; j<mat.cols; j++)
-			{
-				file <<  mat.at<ushort>(i, j) << ",";
-			}
-			file << ";\n";
-		}
-
-		file.close();
-	}
-
-	void SaveMat3f(std::string name, cv::Mat mat)
-	{
-		std::ofstream file(name, std::ios::out);
-
-		file << "x,y,z,\n";
-
-		for (int y = 0; y<mat.rows; ++y)
-		{
-			for (int x = 0; x<mat.cols; ++x)
-			{
-				cv::Vec3f vertex = mat.at<cv::Vec3f>(cv::Point(x,y));
-				if (vertex[0] != 0)
-				{
-					for (int c = 0; c < 3; ++c)
-					{
-						file << vertex[c] << ',';
-					}
-					file << "\n";
-				}
-			}
-		}
-
-		file.close();
-	}
-
-	void check_fps()
-	{
-		const double frameWeight = 0.2;
-
-		auto newTimepoint = clock_type::now();
-		auto frameDuration = std::chrono::duration_cast<duration_type>(newTimepoint - lastTimepoint_);
-
-		frameDuration_ = frameDuration * frameWeight + frameDuration_ * (1 - frameWeight);
-		lastTimepoint_ = newTimepoint;
-
-		double fps = 1.0 / frameDuration_.count();
-
-		auto precision = std::cout.precision();
-		std::cout << std::fixed
-			<< std::setprecision(1)
-			<< fps << " fps ("
-			<< std::setprecision(2)
-			<< frameDuration.count() * 1000 << " ms)"
-			<< std::setprecision(precision)
-			<< std::endl;
-	}
-
-private:
-	using duration_type = std::chrono::duration < double >;
-	duration_type frameDuration_{ 0.0 };
-
-	using clock_type = std::chrono::system_clock;
-	std::chrono::time_point<clock_type> lastTimepoint_;
-};
+	return colorStream;
+}
 
 int main(int argc, char** argv)
 {
@@ -326,7 +81,13 @@ int main(int argc, char** argv)
 	astra::StreamSet streamSet;
 	astra::StreamReader reader = streamSet.create_reader();
 
-	SampleFrameListener listener;
+	SimpleFrameListener listener;
+
+	auto depthStream = configure_depth(reader);
+	depthStream.start();
+
+	auto colorStream = configure_color(reader);
+	colorStream.start();
 
 	reader.stream<astra::DepthStream>().start();
 	reader.stream<astra::ColorStream>().start();
