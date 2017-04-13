@@ -12,12 +12,10 @@
 #include <opencv2/imgproc.hpp> // needed for overlay on images 
 
 SimpleFrameListener::SimpleFrameListener()
-	: lastWidth_RGB(0)
-	, lastHeight_RGB(0)
-	, lastWidth_D(0)
-	, lastHeight_D(0)
 {
-
+	// FOV numbers are from astra document
+	m_depthCamera.reset( new Camera(cv::Vec2f(58.4f, 45.5f), 0, 1));
+	m_colourCamera.reset( new Camera(cv::Vec2f(62.7f, 49.0f), 0, 2));
 }
 
 void SimpleFrameListener::on_frame_ready(astra::StreamReader& reader, astra::Frame& frame)
@@ -45,8 +43,9 @@ void SimpleFrameListener::on_frame_ready(astra::StreamReader& reader, astra::Fra
 
 void SimpleFrameListener::SaveVertexMap(const astra::CoordinateMapper& mapper)
 {
-	if (lastWidth_D == 0 || lastHeight_D == 0 ||
-		lastWidth_RGB == 0 || lastHeight_RGB == 0)
+	cv::Mat depth = m_depthCamera->GetLastFrame();
+	cv::Mat colour = m_colourCamera->GetLastFrame();
+	if ((depth.cols == 0) || (colour.cols == 0))
 	{
 		return; // no data
 	}
@@ -57,22 +56,42 @@ void SimpleFrameListener::SaveVertexMap(const astra::CoordinateMapper& mapper)
 	file << "X,Y,Z,R,G,B\n";
 
 	int depthIndex = 0;
-	for (unsigned int y = 0; y < lastHeight_D; ++y)
+	for (int y = 0; y < depth.rows; ++y)
 	{
-		for (unsigned int x = 0; x < lastWidth_D; ++x)
+		for (int x = 0; x < depth.cols; ++x)
 		{
-			ushort depthValue = buffer_D[depthIndex];
-			if (depthValue != 0)
+			cv::Point position(x, y);
+			ushort depthValue = depth.at<ushort>(position);
+			if (depthValue != 0 && depthValue < 1000)
 			{
-				astra::Vector3f depthPixel((float)x, (float)y, depthValue);
-				astra::Vector3f vertex = mapper.convert_depth_to_world(depthPixel);
-				file << vertex.x << ',' << vertex.y << ',' << vertex.z << ',';
-				// get the corresponding colour value
-				int cx = x * lastWidth_RGB / lastWidth_D;
-				int cy = y * lastHeight_RGB / lastHeight_D;
-				int colourIndex = cy * lastWidth_RGB + cx;
-				astra::RgbPixel colourValue = buffer_RGB[colourIndex];
-				file << (int)colourValue.r << ',' << (int)colourValue.g << ',' << (int)colourValue.b << ',';
+				cv::Vec3f vertex = m_depthCamera->ImageToWorld(position, depthValue);
+				cv::Point2f pixel = m_colourCamera->WorldToImage(vertex);
+
+				if (pixel.x >= 0 && pixel.x < colour.cols && pixel.y >= 0 && pixel.y < colour.rows)
+				{
+					for (int c = 0; c < vertex.rows; c++)
+					{
+						file << vertex[c] << ',';
+					}
+					cv::Vec3b colourValue = colour.at<cv::Vec3b>(pixel);
+					for (int c = 0; c < colourValue.rows; c++)
+					{
+						file << (int)colourValue[colourValue.rows - c - 1] << ',';
+					}
+				}
+
+
+				//astra::Vector3f depthPixel((float)x, (float)y, depthValue);
+				//astra::Vector3f vertex = mapper.convert_depth_to_world(depthPixel);
+				//file << vertex.x << ',' << vertex.y << ',' << vertex.z << ',';
+				//// get the corresponding colour value
+				//int cx = x * colour.cols / depth.cols;
+				//int cy = y * colour.rows / depth.rows;
+				//cv::Vec3b colourValue = colour.at<cv::Vec3b>(position);
+				//for (int c = 0; c < colourValue.rows; c++)
+				//{
+				//	file << (int)colourValue[colourValue.rows - c - 1] << ',';
+				//}
 
 				file << "\n";
 			}
@@ -86,31 +105,10 @@ void SimpleFrameListener::SaveVertexMap(const astra::CoordinateMapper& mapper)
 
 int SimpleFrameListener::ShowDepth(const astra::DepthFrame& depthFrame)
 {
-	int width = depthFrame.width();
-	int height = depthFrame.height();
-	if (width != lastWidth_D || height != lastHeight_D)
-	{
-		buffer_D = buffer_ptrD(new int16_t[depthFrame.length()]);
-		lastWidth_D = width;
-		lastHeight_D = height;
-	}
-	depthFrame.copy_to(buffer_D.get());
-
-	const float maxDepth = 1000.0f;
-	cv::Mat depthImage = cv::Mat(height, width, CV_16UC1);
-	cv::Mat showImage = cv::Mat(height, width, CV_8UC1);
-	size_t index = 0;
-	for (int y = 0; y < height; ++y)
-	{
-		for (int x = 0; x < width; ++x)
-		{
-			short pixelValue = buffer_D[index];
-
-			depthImage.at<ushort>(cv::Point(x, y)) = pixelValue;
-			showImage.at<uchar>(cv::Point(x, y)) = (uchar)(pixelValue * 255 / maxDepth);
-			index++;
-		}
-	}
+	m_depthCamera->ReadFrame(depthFrame);
+	cv::Mat showImage;// = cv::Mat(m_depthCamera->GetImageSize(), CV_8UC1);
+	const float maxDepth = 1000;
+	cv::convertScaleAbs(m_depthCamera->GetLastFrame(), showImage, 255.0 / maxDepth, 0);
 
 	cv::imshow("depth", showImage);
 	//		cv::imwrite("depth.png", showImage);
@@ -121,30 +119,10 @@ int SimpleFrameListener::ShowDepth(const astra::DepthFrame& depthFrame)
 
 void SimpleFrameListener::ShowColour(const astra::ColorFrame& colorFrame)
 {
-	int width = colorFrame.width();
-	int height = colorFrame.height();
-	if (width != lastWidth_RGB || height != lastHeight_RGB)
-	{
-		buffer_RGB = buffer_ptrRGB(new astra::RgbPixel[colorFrame.length()]);
-		lastWidth_RGB = width;
-		lastHeight_RGB = height;
-	}
-	colorFrame.copy_to(buffer_RGB.get());
+	m_colourCamera->ReadFrame(colorFrame);
 
-	cv::Mat colourImage = cv::Mat(height, width, CV_8UC3);
-	size_t index = 0;
-	for (int y = 0; y < height; ++y)
-	{
-		for (int x = 0; x < width; ++x)
-		{
-			astra::RgbPixel pixelValue = buffer_RGB[index];
-			cv::Vec3b bgr(pixelValue.b, pixelValue.g, pixelValue.r);
-			colourImage.at<cv::Vec3b>(cv::Point(x, y)) = bgr;
-			index++;
-		}
-	}
 
-	cv::imshow("colour", colourImage);
+	cv::imshow("colour", m_colourCamera->GetLastFrame());
 	//		cv::imwrite("colour.png", colourImage);
 }
 

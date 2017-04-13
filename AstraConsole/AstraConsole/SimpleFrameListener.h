@@ -3,6 +3,8 @@
 #include <astra/astra.hpp>
 #include "opencv2/highgui.hpp" // basic opencv header. needed for all openCV functionality
 #include <chrono>
+#include "Camera.h"
+
 
 class SimpleFrameListener : public astra::FrameListener
 {
@@ -29,13 +31,7 @@ private:
 	using clock_type = std::chrono::system_clock;
 	std::chrono::time_point<clock_type> lastTimepoint_;
 
-	using buffer_ptrD = std::unique_ptr<int16_t[]>;
-	buffer_ptrD buffer_D;
-	unsigned int lastWidth_D;
-	unsigned int lastHeight_D;
+	std::shared_ptr<Camera> m_depthCamera;
+	std::shared_ptr<Camera> m_colourCamera;
 
-	using buffer_ptrRGB = std::unique_ptr<astra::RgbPixel[]>;
-	buffer_ptrRGB buffer_RGB;
-	unsigned int lastWidth_RGB;
-	unsigned int lastHeight_RGB;
 };

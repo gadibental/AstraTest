@@ -13,3 +13,6 @@
 
 
 // TODO: reference additional headers your program requires here
+#include "opencv2/highgui.hpp" // basic opencv header. needed for all openCV functionality
+#include "opencv2\calib3d.hpp"
+#include <opencv2/imgproc.hpp> // needed for overlay on images 

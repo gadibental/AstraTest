@@ -5,6 +5,8 @@ VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AstraConsole", "AstraConsole\AstraConsole.vcxproj", "{72124745-8017-4835-A290-C7E5C1F54B5B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeometricImageLib", "..\..\fruittracker\DensTracker\GeometricImageLib\GeometricImageLib.vcxproj", "{49803015-559D-4591-84D0-DB73EC32D100}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -15,6 +17,10 @@ Global
 		{72124745-8017-4835-A290-C7E5C1F54B5B}.Debug|x64.Build.0 = Debug|x64
 		{72124745-8017-4835-A290-C7E5C1F54B5B}.Release|x64.ActiveCfg = Release|x64
 		{72124745-8017-4835-A290-C7E5C1F54B5B}.Release|x64.Build.0 = Release|x64
+		{49803015-559D-4591-84D0-DB73EC32D100}.Debug|x64.ActiveCfg = Debug|x64
+		{49803015-559D-4591-84D0-DB73EC32D100}.Debug|x64.Build.0 = Debug|x64
+		{49803015-559D-4591-84D0-DB73EC32D100}.Release|x64.ActiveCfg = Release|x64
+		{49803015-559D-4591-84D0-DB73EC32D100}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
