@@ -170,3 +170,7 @@ $RECYCLE.BIN/
 # Windows default autosave extension
 *.asv
 
+/AstraConsole/AstraConsole/profile_openni_sensor.txt
+/AstraConsole/AstraConsole/profile_orbbec_hand.txt
+/AstraConsole/AstraConsole/vertices.csv
+/WpfApplication2
