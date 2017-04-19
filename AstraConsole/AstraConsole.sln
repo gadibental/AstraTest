@@ -9,6 +9,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeometricImageLib", "..\..\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IntelConsole", "IntelConsole\IntelConsole.vcxproj", "{2C661833-9C3F-4A68-A651-125361B6A045}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IntelDialog", "IntelDialog\IntelDialog.vcxproj", "{8FDB10FB-BACB-4A31-8C1B-627543D9DF30}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RealSenceCameraLibrary", "RealSenceCameraLibrary\RealSenceCameraLibrary.vcxproj", "{DF59CEFE-907C-4726-8634-4DCB5E3E4DEE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -35,6 +39,22 @@ Global
 		{2C661833-9C3F-4A68-A651-125361B6A045}.Release|x64.ActiveCfg = Release|x64
 		{2C661833-9C3F-4A68-A651-125361B6A045}.Release|x64.Build.0 = Release|x64
 		{2C661833-9C3F-4A68-A651-125361B6A045}.Release|x86.ActiveCfg = Release|x64
+		{8FDB10FB-BACB-4A31-8C1B-627543D9DF30}.Debug|x64.ActiveCfg = Debug|x64
+		{8FDB10FB-BACB-4A31-8C1B-627543D9DF30}.Debug|x64.Build.0 = Debug|x64
+		{8FDB10FB-BACB-4A31-8C1B-627543D9DF30}.Debug|x86.ActiveCfg = Debug|Win32
+		{8FDB10FB-BACB-4A31-8C1B-627543D9DF30}.Debug|x86.Build.0 = Debug|Win32
+		{8FDB10FB-BACB-4A31-8C1B-627543D9DF30}.Release|x64.ActiveCfg = Release|x64
+		{8FDB10FB-BACB-4A31-8C1B-627543D9DF30}.Release|x64.Build.0 = Release|x64
+		{8FDB10FB-BACB-4A31-8C1B-627543D9DF30}.Release|x86.ActiveCfg = Release|Win32
+		{8FDB10FB-BACB-4A31-8C1B-627543D9DF30}.Release|x86.Build.0 = Release|Win32
+		{DF59CEFE-907C-4726-8634-4DCB5E3E4DEE}.Debug|x64.ActiveCfg = Debug|x64
+		{DF59CEFE-907C-4726-8634-4DCB5E3E4DEE}.Debug|x64.Build.0 = Debug|x64
+		{DF59CEFE-907C-4726-8634-4DCB5E3E4DEE}.Debug|x86.ActiveCfg = Debug|Win32
+		{DF59CEFE-907C-4726-8634-4DCB5E3E4DEE}.Debug|x86.Build.0 = Debug|Win32
+		{DF59CEFE-907C-4726-8634-4DCB5E3E4DEE}.Release|x64.ActiveCfg = Release|x64
+		{DF59CEFE-907C-4726-8634-4DCB5E3E4DEE}.Release|x64.Build.0 = Release|x64
+		{DF59CEFE-907C-4726-8634-4DCB5E3E4DEE}.Release|x86.ActiveCfg = Release|Win32
+		{DF59CEFE-907C-4726-8634-4DCB5E3E4DEE}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

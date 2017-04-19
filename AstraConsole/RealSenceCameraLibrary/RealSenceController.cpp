@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "RealSenceController.h"
+#include "IImageDisplayer.h"
 
 #include "RealSense/SenseManager.h"
 #include "RealSense/SampleReader.h"
@@ -17,6 +18,12 @@ RealSenceController::RealSenceController()
 	, m_lastColourImage(NULL)
 	, m_lastDepthImage(NULL)
 	, m_projection(NULL)
+	, m_ShowColour(false)
+	, m_ShowDepth(false)
+	, m_ShowIr(false)
+	, m_Stop(false)
+	, m_SaveNextFrame(false)
+	, m_SaveFileName("RealVertex.csv")
 //	, m_lowConfidanceDepthValue(0)
 {
 }
@@ -45,58 +52,26 @@ void RealSenceController::Run(int numFrames, int saveVertexFrequency)
 	Release();
 }
 
-
-void RealSenceController::GotImage(Intel::RealSense::Image * image, std::string imageName)
+void RealSenceController::RunTillStopped()
 {
-	ImageInfo info = image->QueryInfo();
-	int matType = 0;
-	int bytesPerPixel = 0;
-	bool needsScaling = false;
-	PixelFormat whatTypeToAskFor = PixelFormat::PIXEL_FORMAT_DEPTH;
-
-	switch (info.format)
+	if (!Initialise())
 	{
-	case PixelFormat::PIXEL_FORMAT_YUY2:
-		matType = CV_8UC3;
-		bytesPerPixel = 3;
-		needsScaling = false;
-		whatTypeToAskFor = PixelFormat::PIXEL_FORMAT_BGR;
-		break;
-	case PixelFormat::PIXEL_FORMAT_DEPTH:
-		matType = CV_16UC1;
-		bytesPerPixel = 2;
-		needsScaling = true;
-		whatTypeToAskFor = PixelFormat::PIXEL_FORMAT_DEPTH;
-		break;
-	case PixelFormat::PIXEL_FORMAT_Y16:
-		matType = CV_8UC1;
-		bytesPerPixel = 1;
-		needsScaling = false;
-		whatTypeToAskFor = PixelFormat::PIXEL_FORMAT_Y8_IR_RELATIVE;
-		break;
-
-	default:
-		std::wcout << "Unknown image format: " << std::wstring(Image::PixelFormatToString(info.format)) << "\n";
-		break;
+		return;
 	}
 
-	cv::Mat imageMat = cv::Mat::zeros(info.height, info.width, matType);
-	ImageData ddata;
-	if (image->AcquireAccess(Image::ACCESS_READ, whatTypeToAskFor, &ddata) >= PXC_STATUS_NO_ERROR)
+	while (!m_Stop)
 	{
-		memcpy(imageMat.data, ddata.planes[0], info.height*info.width * bytesPerPixel);
+		if (m_SaveNextFrame)
+		{
+			SaveVertexMap();
+			m_SaveNextFrame = false;
+		}
+		GetNextFrame();
 	}
-	image->ReleaseAccess(&ddata);
-
-	const float maxDepth = 1000;
-	cv::Mat showImage = imageMat;
-	if (needsScaling)
-	{
-		cv::convertScaleAbs(imageMat, showImage, 255.0 / maxDepth, 0);
-	}
-
-	cv::imshow(imageName, showImage);
+	Release();
 }
+
+
 
 
 
@@ -120,7 +95,7 @@ void RealSenceController::SaveVertexMap()
 	m_lastColourImage->AcquireAccess(Image::ACCESS_READ, Image::PIXEL_FORMAT_RGBA, &ddata);
 
 
-	std::ofstream file("RealVertex.csv", std::ios::out);
+	std::ofstream file(m_SaveFileName, std::ios::out);
 
 	file << "X,Y,Z,R,G,B\n";
 
@@ -160,20 +135,26 @@ void RealSenceController::GetNextFrame()
 		const Capture::Sample *sample = m_pipeline->QuerySample();
 		if (sample)
 		{
-			if (NULL != sample->ir)
+			if (m_ShowIr && (NULL != sample->ir))
 			{
-				GotImage(sample->ir, "IR");
+				IImageDisplayer::ShowImage(sample->ir, "IR");
 			}
 			if (NULL != sample->depth)
 			{
 				m_lastDepthImage = sample->depth;
-				GotImage(sample->depth, "Depth");
+				if (m_ShowDepth)
+				{
+					IImageDisplayer::ShowImage(sample->depth, "Depth");
+				}
 
 			}
 			if (NULL != sample->color)
 			{
 				m_lastColourImage = sample->color;
-				GotImage(sample->color, "Colour");
+				if (m_ShowColour)
+				{
+					IImageDisplayer::ShowImage(sample->color, "Colour");
+				}
 			}
 
 			cv::waitKey(1); // refresh
@@ -191,6 +172,12 @@ void RealSenceController::Release()
 	m_pipeline->Release();
 }
 
+
+void RealSenceController::SaveNextFrame(std::string fileName)
+{ 
+	m_SaveFileName = fileName;
+	m_SaveNextFrame = true; 
+}
 
 bool RealSenceController::Initialise()
 {

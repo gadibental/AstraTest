@@ -20,10 +20,16 @@ public:
 	~RealSenceController();
 
 	void Run(int numFrames, int saveVertexFrequency);
+	void RunTillStopped();
+
+	void SetShowIR(bool s) { m_ShowIr = s;  }
+	void SetShowColour(bool s) { m_ShowColour = s; }
+	void SetShowDepth(bool s) { m_ShowDepth = s; }
+	void Stop() { m_Stop = true; }
+	void SaveNextFrame(std::string fileName);
 
 private:
 	bool Initialise();
-	void GotImage(Intel::RealSense::Image* image, std::string imageName);
 	void SaveVertexMap();
 	void GetNextFrame();
 	void Release();
@@ -35,5 +41,13 @@ private:
 	Intel::RealSense::Image* m_lastDepthImage;
 	Intel::RealSense::Image* m_lastColourImage;
 	//short m_lowConfidanceDepthValue;
+
+	bool m_ShowDepth;
+	bool m_ShowColour;
+	bool m_ShowIr;
+	bool m_Stop;
+	bool m_SaveNextFrame;
+	std::string m_SaveFileName;
+
 };
 
