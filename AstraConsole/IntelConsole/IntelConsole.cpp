@@ -8,8 +8,9 @@
 int main()
 {
 	const int numFramesToRun = 100;
+	const int saveImageFrequency = 20;
 	RealSenceController controller;
-	controller.Run(numFramesToRun);
+	controller.Run(numFramesToRun, saveImageFrequency);
 
     return 0;
 }

@@ -19,7 +19,6 @@ RealSenceController::RealSenceController()
 	, m_projection(NULL)
 //	, m_lowConfidanceDepthValue(0)
 {
-	m_lastColourMat = cv::Mat::zeros(0, 0, CV_8UC3);
 }
 
 
@@ -27,7 +26,7 @@ RealSenceController::~RealSenceController()
 {
 }
 
-void RealSenceController::Run(int numFrames)
+void RealSenceController::Run(int numFrames, int saveVertexFrequency)
 {
 	if (!Initialise())
 	{
@@ -36,7 +35,7 @@ void RealSenceController::Run(int numFrames)
 
 	for (int frameCount = 0; frameCount < numFrames; frameCount++)
 	{
-		if ((NULL != m_lastDepthImage && NULL != m_lastColourImage) && ((frameCount % 20) == 0))
+		if ((frameCount % saveVertexFrequency) == 0)
 		{
 			SaveVertexMap();
 		}
@@ -46,42 +45,68 @@ void RealSenceController::Run(int numFrames)
 	Release();
 }
 
-void RealSenceController::GotDepthImage(Intel::RealSense::Image * depthImage)
+
+void RealSenceController::GotImage(Intel::RealSense::Image * image, std::string imageName)
 {
-	m_lastDepthImage = depthImage;
-	ImageInfo dI = depthImage->QueryInfo();
-	cv::Mat depthMat = cv::Mat::zeros(dI.height, dI.width, CV_16UC1);
-	ImageData ddata;
-	if (depthImage->AcquireAccess(Image::ACCESS_READ, &ddata) >= PXC_STATUS_NO_ERROR)
+	ImageInfo info = image->QueryInfo();
+	int matType = 0;
+	int bytesPerPixel = 0;
+	bool needsScaling = false;
+	PixelFormat whatTypeToAskFor = PixelFormat::PIXEL_FORMAT_DEPTH;
+
+	switch (info.format)
 	{
-		memcpy(depthMat.data, ddata.planes[0], dI.height*dI.width * 2);
+	case PixelFormat::PIXEL_FORMAT_YUY2:
+		matType = CV_8UC3;
+		bytesPerPixel = 3;
+		needsScaling = false;
+		whatTypeToAskFor = PixelFormat::PIXEL_FORMAT_BGR;
+		break;
+	case PixelFormat::PIXEL_FORMAT_DEPTH:
+		matType = CV_16UC1;
+		bytesPerPixel = 2;
+		needsScaling = true;
+		whatTypeToAskFor = PixelFormat::PIXEL_FORMAT_DEPTH;
+		break;
+	case PixelFormat::PIXEL_FORMAT_Y16:
+		matType = CV_8UC1;
+		bytesPerPixel = 1;
+		needsScaling = false;
+		whatTypeToAskFor = PixelFormat::PIXEL_FORMAT_Y8_IR_RELATIVE;
+		break;
+
+	default:
+		std::wcout << "Unknown image format: " << std::wstring(Image::PixelFormatToString(info.format)) << "\n";
+		break;
 	}
-	depthImage->ReleaseAccess(&ddata);
+
+	cv::Mat imageMat = cv::Mat::zeros(info.height, info.width, matType);
+	ImageData ddata;
+	if (image->AcquireAccess(Image::ACCESS_READ, whatTypeToAskFor, &ddata) >= PXC_STATUS_NO_ERROR)
+	{
+		memcpy(imageMat.data, ddata.planes[0], info.height*info.width * bytesPerPixel);
+	}
+	image->ReleaseAccess(&ddata);
 
 	const float maxDepth = 1000;
-	cv::Mat showImage;
-	cv::convertScaleAbs(depthMat, showImage, 255.0 / maxDepth, 0);
-
-	cv::imshow("depth", showImage);
-}
-
-void RealSenceController::GotColourImage(Intel::RealSense::Image * colourImage)
-{
-	m_lastColourImage = colourImage;
-	ImageInfo cI = colourImage->QueryInfo();
-	m_lastColourMat = cv::Mat::zeros(cI.height, cI.width, CV_8UC3);
-	ImageData ddata;
-	if (colourImage->AcquireAccess(Image::ACCESS_READ, Image::PIXEL_FORMAT_BGR, &ddata) >= PXC_STATUS_NO_ERROR)
+	cv::Mat showImage = imageMat;
+	if (needsScaling)
 	{
-		memcpy(m_lastColourMat.data, ddata.planes[0], cI.height*cI.width * 3);
+		cv::convertScaleAbs(imageMat, showImage, 255.0 / maxDepth, 0);
 	}
-	colourImage->ReleaseAccess(&ddata);
 
-	cv::imshow("colour", m_lastColourMat);
+	cv::imshow(imageName, showImage);
 }
+
+
 
 void RealSenceController::SaveVertexMap()
 {
+	if (NULL == m_lastDepthImage || NULL == m_lastColourImage)
+	{
+		return;
+	}
+
 	ImageInfo dI = m_lastDepthImage->QueryInfo();
 
 	int numPoints = dI.width * dI.height;
@@ -90,29 +115,38 @@ void RealSenceController::SaveVertexMap()
 	std::vector<PointF32> uvMap(numPoints);
 	status = m_projection->QueryUVMap(m_lastDepthImage, &uvMap[0]);
 
+	ImageInfo cI = m_lastColourImage->QueryInfo();
+	ImageData ddata;
+	m_lastColourImage->AcquireAccess(Image::ACCESS_READ, Image::PIXEL_FORMAT_RGBA, &ddata);
+
 
 	std::ofstream file("RealVertex.csv", std::ios::out);
 
 	file << "X,Y,Z,R,G,B\n";
 
+	int* colourPixel = (int*)ddata.planes[0];
 	for (int p = 0; p < numPoints; ++p)
 	{
 		Point3DF32 vertex = vertices[p];
 		if (vertex.z != 0)
 		{
-			cv::Point pixel((int)(uvMap[p].x *m_lastColourMat.cols), (int)(uvMap[p].y * m_lastColourMat.rows));
-			if (pixel.x >= 0 && pixel.x < m_lastColourMat.cols && pixel.y >= 0 && pixel.y < m_lastColourMat.rows)
+			if (uvMap[p].x >= 0 && uvMap[p].x < 1.0f && uvMap[p].y >= 0 && uvMap[p].y < 1.0f)
 			{
+				int x = (int)(uvMap[p].x * cI.width);
+				int y = (int)(uvMap[p].y * cI.height);
 				file << vertex.x << ',' << vertex.y << ',' << vertex.z << ',';
-				cv::Vec3b colourValue = m_lastColourMat.at<cv::Vec3b>(pixel);
-				for (int c = 0; c < colourValue.rows; c++)
+				int pixelValue = *(colourPixel + y*cI.width + x);
+				for (int c = 0; c < 3; c++)
 				{
-					file << (int)colourValue[colourValue.rows - c - 1] << ',';
+					int colour = (int)(pixelValue & 0xFF);
+					file << colour << ',';
+					pixelValue = pixelValue >> 8;
 				}
 				file << "\n";
 			}
 		}
 	}
+	m_lastColourImage->ReleaseAccess(&ddata);
 }
 
 void RealSenceController::GetNextFrame()
@@ -126,14 +160,20 @@ void RealSenceController::GetNextFrame()
 		const Capture::Sample *sample = m_pipeline->QuerySample();
 		if (sample)
 		{
+			if (NULL != sample->ir)
+			{
+				GotImage(sample->ir, "IR");
+			}
 			if (NULL != sample->depth)
 			{
-				GotDepthImage(sample->depth);
+				m_lastDepthImage = sample->depth;
+				GotImage(sample->depth, "Depth");
 
 			}
 			if (NULL != sample->color)
 			{
-				GotColourImage(sample->color);
+				m_lastColourImage = sample->color;
+				GotImage(sample->color, "Colour");
 			}
 
 			cv::waitKey(1); // refresh
@@ -165,7 +205,12 @@ bool RealSenceController::Initialise()
 
 	m_pipeline->EnableStream(Capture::STREAM_TYPE_COLOR, 640, 480);
 	m_pipeline->EnableStream(Capture::STREAM_TYPE_DEPTH);
+	m_pipeline->EnableStream(Capture::STREAM_TYPE_IR);
 	Status status = m_pipeline->Init();
+	if (STATUS_NO_ERROR != status)
+	{
+		return false;
+	}
 
 	DataDesc desc = {};
 	desc.deviceInfo.streams = Capture::STREAM_TYPE_COLOR | Capture::STREAM_TYPE_DEPTH;
@@ -178,3 +223,4 @@ bool RealSenceController::Initialise()
 
 	return (STATUS_NO_ERROR == status);
 }
+
