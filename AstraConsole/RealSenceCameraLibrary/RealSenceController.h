@@ -38,6 +38,8 @@ public:
 	void LearnBG();
 	void UseBlueAsBG();
 
+	void SaveCalibration(std::string fileName);
+
 private:
 	bool Initialise();
 	void SaveVertexMap();

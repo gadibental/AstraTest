@@ -219,6 +219,19 @@ void RealSenceController::UseBlueAsBG()
 	m_BgSubtractor->UseBlueBg();
 }
 
+void RealSenceController::SaveCalibration(std::string fileName)
+{
+	Calibration* calibration = m_projection->QueryCalibration();
+	StreamCalibration depthCalib;
+	StreamTransform depthPose;
+	calibration->QueryStreamProjectionParameters(StreamType::STREAM_TYPE_DEPTH, &depthCalib, &depthPose);
+	StreamCalibration colourCalib;
+	StreamTransform colourPose;
+	calibration->QueryStreamProjectionParameters(StreamType::STREAM_TYPE_COLOR, &colourCalib, &colourPose);
+
+	int x = 0;
+}
+
 bool RealSenceController::Initialise()
 {
 	/* Creates an instance of the SenseManager */
@@ -230,7 +243,8 @@ bool RealSenceController::Initialise()
 	}
 
 
-	m_pipeline->EnableStream(Capture::STREAM_TYPE_COLOR, 640, 480);
+
+	m_pipeline->EnableStream(Capture::STREAM_TYPE_COLOR, 640, 480, 0, StreamOption::STREAM_OPTION_STRONG_STREAM_SYNC);
 	m_pipeline->EnableStream(Capture::STREAM_TYPE_DEPTH);
 	m_pipeline->EnableStream(Capture::STREAM_TYPE_IR);
 	Status status = m_pipeline->Init();

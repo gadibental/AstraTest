@@ -57,4 +57,5 @@ public:
 	afx_msg void OnBnClickedButtonLearnBg();
 	afx_msg void OnBnClickedCheckIgnoreBackground();
 	afx_msg void OnBnClickedButtonBlueBg();
+	afx_msg void OnBnClickedButtonCamCalib();
 };

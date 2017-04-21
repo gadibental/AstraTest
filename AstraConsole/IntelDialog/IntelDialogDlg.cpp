@@ -82,6 +82,7 @@ BEGIN_MESSAGE_MAP(CIntelDialogDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_LEARN_BG, &CIntelDialogDlg::OnBnClickedButtonLearnBg)
 	ON_BN_CLICKED(IDC_CHECK_IGNORE_BACKGROUND, &CIntelDialogDlg::OnBnClickedCheckIgnoreBackground)
 	ON_BN_CLICKED(IDC_BUTTON_BLUE_BG, &CIntelDialogDlg::OnBnClickedButtonBlueBg)
+	ON_BN_CLICKED(IDC_BUTTON_CAM_CALIB, &CIntelDialogDlg::OnBnClickedButtonCamCalib)
 END_MESSAGE_MAP()
 
 UINT RunInThread(LPVOID pParam)
@@ -246,4 +247,10 @@ void CIntelDialogDlg::OnBnClickedButtonLearnBg()
 void CIntelDialogDlg::OnBnClickedButtonBlueBg()
 {
 	m_theCamera->UseBlueAsBG();
+}
+
+
+void CIntelDialogDlg::OnBnClickedButtonCamCalib()
+{
+	m_theCamera->SaveCalibration("camera.txt");
 }
