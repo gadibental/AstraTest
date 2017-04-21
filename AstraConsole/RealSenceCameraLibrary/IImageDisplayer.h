@@ -18,11 +18,11 @@ public:
 	IImageDisplayer();
 	virtual ~IImageDisplayer();
 
-	static void ShowImage(Intel::RealSense::Image* image, std::string imageName);
+	static cv::Mat GetImageForDisplay(Intel::RealSense::Image* image);
 
 private:
 	static std::shared_ptr<IImageDisplayer> CreateDisplayer(Intel::RealSense::Image* image);
-	void DoShowImage(Intel::RealSense::Image * image, std::string imageName);
+	cv::Mat DoGetImageForDisplay(Intel::RealSense::Image * image);
 
 protected:
 	virtual int GetMatType() = 0;

@@ -97,6 +97,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\ImageProcessingLib\ImageProcessingLib.vcxproj">
+      <Project>{b8a84a30-77e1-4190-b64b-c6eb20715958}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\RealSenceCameraLibrary\RealSenceCameraLibrary.vcxproj">
       <Project>{df59cefe-907c-4726-8634-4dcb5e3e4dee}</Project>
     </ProjectReference>

@@ -48,9 +48,13 @@ private:
 	BOOL m_ShowDepth;
 	BOOL m_showColour;
 	BOOL m_showIr;
+	BOOL m_removeBG;
 
 	std::shared_ptr<RealSenceController> m_theCamera;
 public:
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedButtonSaveCsv();
+	afx_msg void OnBnClickedButtonLearnBg();
+	afx_msg void OnBnClickedCheckIgnoreBackground();
+	afx_msg void OnBnClickedButtonBlueBg();
 };

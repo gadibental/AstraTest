@@ -56,6 +56,7 @@ CIntelDialogDlg::CIntelDialogDlg(CWnd* pParent /*=NULL*/)
 	, m_ShowDepth(false)
 	, m_showColour(false)
 	, m_showIr(false)
+	, m_removeBG(false)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -66,6 +67,7 @@ void CIntelDialogDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_CHECK_SHOW_DEPTH, m_ShowDepth);
 	DDX_Check(pDX, IDC_CHECK_SHOW_COLOUR, m_showColour);
 	DDX_Check(pDX, IDC_CHECK_SHOW_IR, m_showIr);
+	DDX_Check(pDX, IDC_CHECK_IGNORE_BACKGROUND, m_removeBG);
 }
 
 BEGIN_MESSAGE_MAP(CIntelDialogDlg, CDialogEx)
@@ -77,6 +79,9 @@ BEGIN_MESSAGE_MAP(CIntelDialogDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_CHECK_SHOW_IR, &CIntelDialogDlg::OnClickedCheckShowIr)
 	ON_BN_CLICKED(IDOK, &CIntelDialogDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDC_BUTTON_SAVE_CSV, &CIntelDialogDlg::OnBnClickedButtonSaveCsv)
+	ON_BN_CLICKED(IDC_BUTTON_LEARN_BG, &CIntelDialogDlg::OnBnClickedButtonLearnBg)
+	ON_BN_CLICKED(IDC_CHECK_IGNORE_BACKGROUND, &CIntelDialogDlg::OnBnClickedCheckIgnoreBackground)
+	ON_BN_CLICKED(IDC_BUTTON_BLUE_BG, &CIntelDialogDlg::OnBnClickedButtonBlueBg)
 END_MESSAGE_MAP()
 
 UINT RunInThread(LPVOID pParam)
@@ -194,12 +199,18 @@ void CIntelDialogDlg::OnClickedCheckShowIr()
 	UpdateShow();
 }
 
+void CIntelDialogDlg::OnBnClickedCheckIgnoreBackground()
+{
+	UpdateShow();
+}
+
 void CIntelDialogDlg::UpdateShow()
 {
 	UpdateData(TRUE);
 	m_theCamera->SetShowColour(m_showColour != FALSE);
 	m_theCamera->SetShowDepth(m_ShowDepth != FALSE);
 	m_theCamera->SetShowIR(m_showIr != FALSE);
+	m_theCamera->SetRemoveBg(m_removeBG != FALSE);
 }
 
 
@@ -221,4 +232,18 @@ void CIntelDialogDlg::OnBnClickedButtonSaveCsv()
 	}
 	std::string outputFile = (LPCSTR)save.GetPathName();
 	m_theCamera->SaveNextFrame(outputFile);
+}
+
+
+void CIntelDialogDlg::OnBnClickedButtonLearnBg()
+{
+	m_theCamera->LearnBG();
+}
+
+
+
+
+void CIntelDialogDlg::OnBnClickedButtonBlueBg()
+{
+	m_theCamera->UseBlueAsBG();
 }

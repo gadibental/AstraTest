@@ -41,13 +41,13 @@ std::shared_ptr<IImageDisplayer> IImageDisplayer::CreateDisplayer(Intel::RealSen
 	return displayer;
 }
 
-void IImageDisplayer::ShowImage(Intel::RealSense::Image * image, std::string imageName)
+cv::Mat IImageDisplayer::GetImageForDisplay(Intel::RealSense::Image * image)
 {
 	std::shared_ptr<IImageDisplayer> displayer = IImageDisplayer::CreateDisplayer(image);
-	displayer->DoShowImage(image, imageName);
+	return displayer->DoGetImageForDisplay(image);
 }
 
-void IImageDisplayer::DoShowImage(Intel::RealSense::Image * image, std::string imageName)
+cv::Mat IImageDisplayer::DoGetImageForDisplay(Intel::RealSense::Image * image)
 {
 	ImageInfo info = image->QueryInfo();
 	cv::Mat imageMat = cv::Mat::zeros(info.height, info.width, GetMatType());
@@ -58,9 +58,7 @@ void IImageDisplayer::DoShowImage(Intel::RealSense::Image * image, std::string i
 	}
 	image->ReleaseAccess(&ddata);
 
-	cv::Mat showImage = ScaleImageForDisplay(imageMat);
-
-	cv::imshow(imageName, showImage);
+	return ScaleImageForDisplay(imageMat);
 }
 
 int ImageDisplayerDepth::GetMatType()

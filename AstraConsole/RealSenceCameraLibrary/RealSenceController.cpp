@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "RealSenceController.h"
 #include "IImageDisplayer.h"
+#include "..\ImageProcessingLib\BackgroundSubtractor.h"
 
 #include "RealSense/SenseManager.h"
 #include "RealSense/SampleReader.h"
@@ -24,8 +25,10 @@ RealSenceController::RealSenceController()
 	, m_Stop(false)
 	, m_SaveNextFrame(false)
 	, m_SaveFileName("RealVertex.csv")
+	, m_BgImageCounter(-1)
 //	, m_lowConfidanceDepthValue(0)
 {
+	m_BgSubtractor.reset(new ImgProcLib::BackgroundSubtractor);
 }
 
 
@@ -91,15 +94,20 @@ void RealSenceController::SaveVertexMap()
 	status = m_projection->QueryUVMap(m_lastDepthImage, &uvMap[0]);
 
 	ImageInfo cI = m_lastColourImage->QueryInfo();
-	ImageData ddata;
-	m_lastColourImage->AcquireAccess(Image::ACCESS_READ, Image::PIXEL_FORMAT_RGBA, &ddata);
+	//ImageData ddata;
+	//m_lastColourImage->AcquireAccess(Image::ACCESS_READ, Image::PIXEL_FORMAT_RGBA, &ddata);
+	cv::Mat colourMat = IImageDisplayer::GetImageForDisplay(m_lastColourImage);
+	if (m_RemovBG)
+	{
+		colourMat = m_BgSubtractor->SubtractBg(colourMat);
+	}
 
 
 	std::ofstream file(m_SaveFileName, std::ios::out);
 
 	file << "X,Y,Z,R,G,B\n";
 
-	int* colourPixel = (int*)ddata.planes[0];
+//	int* colourPixel = (int*)ddata.planes[0];
 	for (int p = 0; p < numPoints; ++p)
 	{
 		Point3DF32 vertex = vertices[p];
@@ -107,21 +115,30 @@ void RealSenceController::SaveVertexMap()
 		{
 			if (uvMap[p].x >= 0 && uvMap[p].x < 1.0f && uvMap[p].y >= 0 && uvMap[p].y < 1.0f)
 			{
-				int x = (int)(uvMap[p].x * cI.width);
-				int y = (int)(uvMap[p].y * cI.height);
-				file << vertex.x << ',' << vertex.y << ',' << vertex.z << ',';
-				int pixelValue = *(colourPixel + y*cI.width + x);
-				for (int c = 0; c < 3; c++)
+				int x = (int)(uvMap[p].x * colourMat.cols);
+				int y = (int)(uvMap[p].y * colourMat.rows);
+				cv::Point pixelPosition(x, y);
+				cv::Vec3b pixelValue = colourMat.at<cv::Vec3b>(pixelPosition);
+				if (pixelValue[0] != 0)
 				{
-					int colour = (int)(pixelValue & 0xFF);
-					file << colour << ',';
-					pixelValue = pixelValue >> 8;
+					file << vertex.x << ',' << vertex.y << ',' << vertex.z << ',';
+					for (int c = 0; c < 3; c++)
+					{
+						file << (int)pixelValue[2-c] << ','; // note BGR to RGB
+					}
+					file << "\n";
 				}
-				file << "\n";
+//				int pixelValue = *(colourPixel + y*cI.width + x);
+				//for (int c = 0; c < 3; c++)
+				//{
+				//	int colour = (int)(pixelValue & 0xFF);
+				//	file << colour << ',';
+				//	pixelValue = pixelValue >> 8;
+				//}
 			}
 		}
 	}
-	m_lastColourImage->ReleaseAccess(&ddata);
+//	m_lastColourImage->ReleaseAccess(&ddata);
 }
 
 void RealSenceController::GetNextFrame()
@@ -137,14 +154,16 @@ void RealSenceController::GetNextFrame()
 		{
 			if (m_ShowIr && (NULL != sample->ir))
 			{
-				IImageDisplayer::ShowImage(sample->ir, "IR");
+				cv::Mat image = IImageDisplayer::GetImageForDisplay(sample->ir);
+				cv::imshow("IR", image);
 			}
 			if (NULL != sample->depth)
 			{
 				m_lastDepthImage = sample->depth;
 				if (m_ShowDepth)
 				{
-					IImageDisplayer::ShowImage(sample->depth, "Depth");
+					cv::Mat image = IImageDisplayer::GetImageForDisplay(sample->depth);
+					cv::imshow("Depth", image);
 				}
 
 			}
@@ -153,7 +172,17 @@ void RealSenceController::GetNextFrame()
 				m_lastColourImage = sample->color;
 				if (m_ShowColour)
 				{
-					IImageDisplayer::ShowImage(sample->color, "Colour");
+					cv::Mat colourImage = IImageDisplayer::GetImageForDisplay(sample->color);
+					if (m_RemovBG)
+					{
+						colourImage = m_BgSubtractor->SubtractBg(colourImage);
+					}
+					cv::imshow("Colour", colourImage);
+					if (m_BgImageCounter > 0)
+					{
+						m_BgSubtractor->AddBgImage(colourImage);
+						m_BgImageCounter--;
+					}
 				}
 			}
 
@@ -177,6 +206,17 @@ void RealSenceController::SaveNextFrame(std::string fileName)
 { 
 	m_SaveFileName = fileName;
 	m_SaveNextFrame = true; 
+}
+
+void RealSenceController::LearnBG()
+{
+	m_BgSubtractor->Clear();
+	m_BgImageCounter = 50;
+}
+
+void RealSenceController::UseBlueAsBG()
+{
+	m_BgSubtractor->UseBlueBg();
 }
 
 bool RealSenceController::Initialise()
