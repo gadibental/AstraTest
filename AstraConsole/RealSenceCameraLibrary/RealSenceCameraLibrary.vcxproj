@@ -19,11 +19,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CameraCalibrationExporter.cpp" />
     <ClCompile Include="IImageDisplayer.cpp" />
     <ClCompile Include="RealSenceController.cpp" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CameraCalibrationExporter.h" />
     <ClInclude Include="IImageDisplayer.h" />
     <ClInclude Include="RealSenceController.h" />
     <ClInclude Include="stdafx.h" />

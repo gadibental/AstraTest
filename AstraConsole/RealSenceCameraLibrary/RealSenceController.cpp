@@ -2,6 +2,7 @@
 #include "RealSenceController.h"
 #include "IImageDisplayer.h"
 #include "..\ImageProcessingLib\BackgroundSubtractor.h"
+#include "CameraCalibrationExporter.h"
 
 #include "RealSense/SenseManager.h"
 #include "RealSense/SampleReader.h"
@@ -93,6 +94,10 @@ void RealSenceController::SaveVertexMap()
 	std::vector<PointF32> uvMap(numPoints);
 	status = m_projection->QueryUVMap(m_lastDepthImage, &uvMap[0]);
 
+	std::vector<PointF32> depthUv(numPoints);
+	m_projection->ProjectCameraToDepth(numPoints, &vertices[0], &depthUv[0]);
+
+
 	ImageInfo cI = m_lastColourImage->QueryInfo();
 	//ImageData ddata;
 	//m_lastColourImage->AcquireAccess(Image::ACCESS_READ, Image::PIXEL_FORMAT_RGBA, &ddata);
@@ -105,7 +110,7 @@ void RealSenceController::SaveVertexMap()
 
 	std::ofstream file(m_SaveFileName, std::ios::out);
 
-	file << "X,Y,Z,R,G,B\n";
+	file << "X,Y,Z,R,G,B,x,y\n";
 
 //	int* colourPixel = (int*)ddata.planes[0];
 	for (int p = 0; p < numPoints; ++p)
@@ -126,6 +131,10 @@ void RealSenceController::SaveVertexMap()
 					{
 						file << (int)pixelValue[2-c] << ','; // note BGR to RGB
 					}
+					// get the source XY coordinate in the depth image
+					int xd = (int)(depthUv[p].x);
+					int yd = (int)(depthUv[p].y);
+					file << xd << ',' << yd << ',';
 					file << "\n";
 				}
 //				int pixelValue = *(colourPixel + y*cI.width + x);
@@ -221,15 +230,8 @@ void RealSenceController::UseBlueAsBG()
 
 void RealSenceController::SaveCalibration(std::string fileName)
 {
-	Calibration* calibration = m_projection->QueryCalibration();
-	StreamCalibration depthCalib;
-	StreamTransform depthPose;
-	calibration->QueryStreamProjectionParameters(StreamType::STREAM_TYPE_DEPTH, &depthCalib, &depthPose);
-	StreamCalibration colourCalib;
-	StreamTransform colourPose;
-	calibration->QueryStreamProjectionParameters(StreamType::STREAM_TYPE_COLOR, &colourCalib, &colourPose);
-
-	int x = 0;
+	CameraCalibrationExporter exporter;
+	exporter.Export(m_projection, fileName);
 }
 
 bool RealSenceController::Initialise()

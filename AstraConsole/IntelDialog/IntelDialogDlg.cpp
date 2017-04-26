@@ -252,5 +252,11 @@ void CIntelDialogDlg::OnBnClickedButtonBlueBg()
 
 void CIntelDialogDlg::OnBnClickedButtonCamCalib()
 {
-	m_theCamera->SaveCalibration("camera.txt");
+	CFileDialog save(FALSE, _T("txt"), _T("*.txt"));
+	if (IDOK != save.DoModal())
+	{
+		return;
+	}
+	std::string outputFile = (LPCSTR)save.GetPathName();
+	m_theCamera->SaveCalibration(outputFile);
 }
