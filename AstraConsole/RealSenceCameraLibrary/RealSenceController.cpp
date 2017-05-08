@@ -1,8 +1,9 @@
 #include "stdafx.h"
 #include "RealSenceController.h"
 #include "IImageDisplayer.h"
-#include "..\ImageProcessingLib\BackgroundSubtractor.h"
 #include "CameraCalibrationExporter.h"
+#include "ImageSaver3D.h"
+#include "..\ImageProcessingLib\BackgroundSubtractor.h"
 
 #include "RealSense/SenseManager.h"
 #include "RealSense/SampleReader.h"
@@ -86,69 +87,11 @@ void RealSenceController::SaveVertexMap()
 		return;
 	}
 
-	ImageInfo dI = m_lastDepthImage->QueryInfo();
+	std::shared_ptr<ImageSaver3D> saver = ImageSaver3D::CreateSaver(m_SaveFileName);
+	saver->SaveImage(m_lastDepthImage, m_lastColourImage, m_projection, m_RemovBG, m_BgSubtractor);
 
-	int numPoints = dI.width * dI.height;
-	std::vector<Point3DF32> vertices(numPoints);
-	Status status = m_projection->QueryVertices(m_lastDepthImage, &vertices[0]);
-	std::vector<PointF32> uvMap(numPoints);
-	status = m_projection->QueryUVMap(m_lastDepthImage, &uvMap[0]);
-
-	std::vector<PointF32> depthUv(numPoints);
-	m_projection->ProjectCameraToDepth(numPoints, &vertices[0], &depthUv[0]);
-
-
-	ImageInfo cI = m_lastColourImage->QueryInfo();
-	//ImageData ddata;
-	//m_lastColourImage->AcquireAccess(Image::ACCESS_READ, Image::PIXEL_FORMAT_RGBA, &ddata);
-	cv::Mat colourMat = IImageDisplayer::GetImageForDisplay(m_lastColourImage);
-	if (m_RemovBG)
-	{
-		colourMat = m_BgSubtractor->SubtractBg(colourMat);
-	}
-
-
-	std::ofstream file(m_SaveFileName, std::ios::out);
-
-	file << "X,Y,Z,R,G,B,x,y\n";
-
-//	int* colourPixel = (int*)ddata.planes[0];
-	for (int p = 0; p < numPoints; ++p)
-	{
-		Point3DF32 vertex = vertices[p];
-		if (vertex.z != 0)
-		{
-			if (uvMap[p].x >= 0 && uvMap[p].x < 1.0f && uvMap[p].y >= 0 && uvMap[p].y < 1.0f)
-			{
-				int x = (int)(uvMap[p].x * colourMat.cols);
-				int y = (int)(uvMap[p].y * colourMat.rows);
-				cv::Point pixelPosition(x, y);
-				cv::Vec3b pixelValue = colourMat.at<cv::Vec3b>(pixelPosition);
-				if (pixelValue[0] != 0)
-				{
-					file << vertex.x << ',' << vertex.y << ',' << vertex.z << ',';
-					for (int c = 0; c < 3; c++)
-					{
-						file << (int)pixelValue[2-c] << ','; // note BGR to RGB
-					}
-					// get the source XY coordinate in the depth image
-					int xd = (int)(depthUv[p].x);
-					int yd = (int)(depthUv[p].y);
-					file << xd << ',' << yd << ',';
-					file << "\n";
-				}
-//				int pixelValue = *(colourPixel + y*cI.width + x);
-				//for (int c = 0; c < 3; c++)
-				//{
-				//	int colour = (int)(pixelValue & 0xFF);
-				//	file << colour << ',';
-				//	pixelValue = pixelValue >> 8;
-				//}
-			}
-		}
-	}
-//	m_lastColourImage->ReleaseAccess(&ddata);
 }
+
 
 void RealSenceController::GetNextFrame()
 {

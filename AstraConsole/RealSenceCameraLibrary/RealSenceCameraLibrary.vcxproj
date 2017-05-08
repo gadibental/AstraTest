@@ -21,12 +21,14 @@
   <ItemGroup>
     <ClCompile Include="CameraCalibrationExporter.cpp" />
     <ClCompile Include="IImageDisplayer.cpp" />
+    <ClCompile Include="ImageSaver3D.cpp" />
     <ClCompile Include="RealSenceController.cpp" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CameraCalibrationExporter.h" />
     <ClInclude Include="IImageDisplayer.h" />
+    <ClInclude Include="ImageSaver3D.h" />
     <ClInclude Include="RealSenceController.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />

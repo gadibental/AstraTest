@@ -57,6 +57,8 @@ CIntelDialogDlg::CIntelDialogDlg(CWnd* pParent /*=NULL*/)
 	, m_showColour(false)
 	, m_showIr(false)
 	, m_removeBG(false)
+	, m_frameIndex(1)
+	, m_AutoIncrementFrame(false)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -68,6 +70,8 @@ void CIntelDialogDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_CHECK_SHOW_COLOUR, m_showColour);
 	DDX_Check(pDX, IDC_CHECK_SHOW_IR, m_showIr);
 	DDX_Check(pDX, IDC_CHECK_IGNORE_BACKGROUND, m_removeBG);
+	DDX_Check(pDX, IDC_CHECK_AUTO_INC_SAVE, m_AutoIncrementFrame);
+	DDX_Text(pDX, IDC_EDIT_FRAME_NUMBER, m_frameIndex);
 }
 
 BEGIN_MESSAGE_MAP(CIntelDialogDlg, CDialogEx)
@@ -226,13 +230,28 @@ void CIntelDialogDlg::OnBnClickedOk()
 
 void CIntelDialogDlg::OnBnClickedButtonSaveCsv()
 {
-	CFileDialog save(FALSE, _T("csv"), _T("*.csv"));
-	if (IDOK != save.DoModal())
+	UpdateData(TRUE);
+	std::string outputFile;
+	if (m_AutoIncrementFrame)
 	{
-		return;
+		CString name;
+		name.Format("D:\\GadiWork\\3DCameras\\FruitCaptures\\frame%02d.png", m_frameIndex);
+		outputFile = (LPCSTR)name;
+		m_frameIndex++;
 	}
-	std::string outputFile = (LPCSTR)save.GetPathName();
+	else
+	{
+		CString sFilter = _T("png Files (*.png)|*.png|csv Files (*.csv)|*.csv|All Files (*.*)|*.*||");
+		CFileDialog save(FALSE, _T("png"), NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, sFilter, this);
+		if (IDOK != save.DoModal())
+		{
+			return;
+		}
+		outputFile = (LPCSTR)save.GetPathName();
+	}
+
 	m_theCamera->SaveNextFrame(outputFile);
+	UpdateData(FALSE);
 }
 
 
