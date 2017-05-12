@@ -3,6 +3,8 @@
 #include "IImageDisplayer.h"
 #include "CameraCalibrationExporter.h"
 #include "ImageSaver3D.h"
+#include "SequenceSaver.h"
+
 #include "..\ImageProcessingLib\BackgroundSubtractor.h"
 
 #include "RealSense/SenseManager.h"
@@ -28,6 +30,7 @@ RealSenceController::RealSenceController()
 	, m_SaveNextFrame(false)
 	, m_SaveFileName("RealVertex.csv")
 	, m_BgImageCounter(-1)
+	, m_frameInSecuanceCounter(-1)
 //	, m_lowConfidanceDepthValue(0)
 {
 	m_BgSubtractor.reset(new ImgProcLib::BackgroundSubtractor);
@@ -66,12 +69,22 @@ void RealSenceController::RunTillStopped()
 
 	while (!m_Stop)
 	{
+		GetNextFrame();
 		if (m_SaveNextFrame)
 		{
 			SaveVertexMap();
 			m_SaveNextFrame = false;
 		}
-		GetNextFrame();
+		if (m_frameInSecuanceCounter > 0)
+		{
+			m_sequenceSaver->AddImage(m_lastDepthImage, m_lastColourImage, m_projection, m_RemovBG, m_BgSubtractor);
+			m_frameInSecuanceCounter--;
+
+			if (0 == m_frameInSecuanceCounter)
+			{
+				m_sequenceSaver->Save(m_projection);
+			}
+		}
 	}
 	Release();
 }
@@ -175,6 +188,12 @@ void RealSenceController::SaveCalibration(std::string fileName)
 {
 	CameraCalibrationExporter exporter;
 	exporter.Export(m_projection, fileName);
+}
+
+void RealSenceController::SaveSequance(std::string fileName, int numFramesToSave)
+{
+	m_frameInSecuanceCounter = numFramesToSave;
+	m_sequenceSaver.reset(new SequenceSaver(numFramesToSave, fileName));
 }
 
 bool RealSenceController::Initialise()

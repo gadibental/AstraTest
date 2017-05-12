@@ -26,11 +26,11 @@ public:
 		bool removeBg,
 		std::shared_ptr<ImgProcLib::BackgroundSubtractor> bgSubtractor);
 
-
-protected:
 	void CreateProjection(Intel::RealSense::Image* depthImage,
 		Intel::RealSense::Image*colourImage,
 		Intel::RealSense::Projection* projection);
+
+protected:
 	void RemoveBg(std::shared_ptr<ImgProcLib::BackgroundSubtractor> bgSubtractor);
 
 	virtual void SaveTheData() = 0;
@@ -63,6 +63,8 @@ class ImageSaverRGBD : public ImageSaver3D
 public:
 	ImageSaverRGBD(std::string fileName);
 	~ImageSaverRGBD();
+
+	cv::Mat CreateImageToSave();
 
 protected:
 	virtual void SaveTheData() override;

@@ -51,6 +51,7 @@ private:
 	BOOL m_removeBG;
 	BOOL m_AutoIncrementFrame;
 	int m_frameIndex;
+	int m_numFramesPerSequance;
 
 	std::shared_ptr<RealSenceController> m_theCamera;
 public:
@@ -60,6 +61,5 @@ public:
 	afx_msg void OnBnClickedCheckIgnoreBackground();
 	afx_msg void OnBnClickedButtonBlueBg();
 	afx_msg void OnBnClickedButtonCamCalib();
-private:
-public:
+	afx_msg void OnBnClickedButtonSaveSeq();
 };

@@ -18,6 +18,7 @@ namespace ImgProcLib
 	class BackgroundSubtractor;
 }
 
+class SequenceSaver;
 
 class RealSenceController
 {
@@ -39,6 +40,7 @@ public:
 	void UseBlueAsBG();
 
 	void SaveCalibration(std::string fileName);
+	void SaveSequance(std::string fileName, int numFramesToSave);
 
 private:
 	bool Initialise();
@@ -61,9 +63,11 @@ private:
 	bool m_SaveNextFrame;
 	bool m_RemovBG;
 	int m_BgImageCounter;
+	int m_frameInSecuanceCounter;
 
 	std::string m_SaveFileName;
 	std::shared_ptr<ImgProcLib::BackgroundSubtractor> m_BgSubtractor;
+	std::shared_ptr<SequenceSaver> m_sequenceSaver;
 
 };
 

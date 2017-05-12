@@ -143,7 +143,7 @@ ImageSaverRGBD::~ImageSaverRGBD()
 {
 }
 
-void ImageSaverRGBD::SaveTheData()
+cv::Mat ImageSaverRGBD::CreateImageToSave()
 {
 	cv::Mat theImage = cv::Mat::zeros(m_colourMat.size(), CV_32FC(4));
 
@@ -177,5 +177,11 @@ void ImageSaverRGBD::SaveTheData()
 
 	cv::Mat converted;
 	theImage.convertTo(converted, CV_16U); // convert to 16 bit int image
-	cv::imwrite(m_fileName, converted);
+	return converted;
+}
+
+void ImageSaverRGBD::SaveTheData()
+{
+	cv::Mat theImage = CreateImageToSave();
+	cv::imwrite(m_fileName, theImage);
 }

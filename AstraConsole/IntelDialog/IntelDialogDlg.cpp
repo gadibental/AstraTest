@@ -58,6 +58,7 @@ CIntelDialogDlg::CIntelDialogDlg(CWnd* pParent /*=NULL*/)
 	, m_showIr(false)
 	, m_removeBG(false)
 	, m_frameIndex(1)
+	, m_numFramesPerSequance(100)
 	, m_AutoIncrementFrame(false)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
@@ -72,6 +73,7 @@ void CIntelDialogDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_CHECK_IGNORE_BACKGROUND, m_removeBG);
 	DDX_Check(pDX, IDC_CHECK_AUTO_INC_SAVE, m_AutoIncrementFrame);
 	DDX_Text(pDX, IDC_EDIT_FRAME_NUMBER, m_frameIndex);
+	DDX_Text(pDX, IDC_EDIT_NUM_FRAMES_SEQ, m_numFramesPerSequance);
 }
 
 BEGIN_MESSAGE_MAP(CIntelDialogDlg, CDialogEx)
@@ -87,6 +89,7 @@ BEGIN_MESSAGE_MAP(CIntelDialogDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_CHECK_IGNORE_BACKGROUND, &CIntelDialogDlg::OnBnClickedCheckIgnoreBackground)
 	ON_BN_CLICKED(IDC_BUTTON_BLUE_BG, &CIntelDialogDlg::OnBnClickedButtonBlueBg)
 	ON_BN_CLICKED(IDC_BUTTON_CAM_CALIB, &CIntelDialogDlg::OnBnClickedButtonCamCalib)
+	ON_BN_CLICKED(IDC_BUTTON_SAVE_SEQ, &CIntelDialogDlg::OnBnClickedButtonSaveSeq)
 END_MESSAGE_MAP()
 
 UINT RunInThread(LPVOID pParam)
@@ -279,3 +282,19 @@ void CIntelDialogDlg::OnBnClickedButtonCamCalib()
 	std::string outputFile = (LPCSTR)save.GetPathName();
 	m_theCamera->SaveCalibration(outputFile);
 }
+
+
+
+
+void CIntelDialogDlg::OnBnClickedButtonSaveSeq()
+{
+	UpdateData(TRUE);
+	CFileDialog save(FALSE, _T("twx"), _T("*.twx"));
+	if (IDOK != save.DoModal())
+	{
+		return;
+	}
+	std::string xmlFile = (LPCSTR)save.GetPathName();
+	m_theCamera->SaveSequance(xmlFile, m_numFramesPerSequance);
+}
+
